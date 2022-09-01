@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract MeetNFT is ERC721URIStorage {
     address admin;
-    address spender;
     using Counters for Counters.Counter;
 
     Counters.Counter public _assetCount;
@@ -15,9 +14,8 @@ contract MeetNFT is ERC721URIStorage {
         return _assetCount.current();
     }
 
-    constructor(address _spender) ERC721("Meet NFT", "MNT") {
+    constructor() ERC721("Meet NFT", "MNT") {
         admin = msg.sender;
-        spender = _spender;
     }
 
     function mint(string memory _tokeURI) external onlyAdmin returns (uint256) {
@@ -26,13 +24,8 @@ contract MeetNFT is ERC721URIStorage {
 
         _mint(msg.sender, currentAssetId);
         _setTokenURI(currentAssetId, _tokeURI);
-        approve(spender, currentAssetId);
 
         return currentAssetId;
-    }
-
-    function changeApprover(address _spender) public onlyAdmin {
-        spender = _spender;
     }
 
     modifier onlyAdmin() {
