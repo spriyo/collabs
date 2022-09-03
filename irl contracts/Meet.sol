@@ -6,14 +6,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract Meet {
-    address admin;
+    mapping(address => bool) public admins;
     address tokenAddress;
     address NFTAddress;
     using Counters for Counters.Counter;
 
     struct IRL {
         uint256 id;
-        uint256 eventAmount;
+        string image;
+        string name;
         mapping(address => bool) participants;
     }
 
@@ -22,23 +23,33 @@ contract Meet {
         uint256 tokenId;
     }
 
+    struct Activity {
+        uint256 id;
+        uint256 irlId;
+        string name;
+        uint256 award;
+    }
+
     Counters.Counter public irlCount;
     Counters.Counter public _giftNFTCount;
+    Counters.Counter public _activityCount;
     mapping(uint256 => IRL) public irls;
     mapping(uint256 => GiftNFT) public _giftNfts;
+    mapping(uint256 => Activity) public activities;
     mapping(address => mapping(uint256 => bool)) private _redeems;
-    mapping(uint256 => mapping(address => mapping(address => bool)))
-        public interactions;
+    // mapping(uint256 => mapping(address => mapping(address => bool))) public interactions;
+    mapping(uint256 => mapping(uint256 => mapping(address => bool)))
+        public activityInteractions;
 
     constructor(address _tokenAddress, address _nftAddress) {
-        admin = msg.sender;
+        admins[msg.sender] = true;
         tokenAddress = _tokenAddress;
         NFTAddress = _nftAddress;
     }
 
     function createGiftNft(uint256 _tokenId, uint256 _reedemAmount)
         public
-        onlyAdmin
+        onlyAdmins
     {
         _giftNFTCount.increment();
         _giftNfts[_giftNFTCount.current()] = GiftNFT({
@@ -47,25 +58,29 @@ contract Meet {
         });
     }
 
-    function createIrl(uint256 _eventAmount) public onlyAdmin {
+    function createIrl(string memory _image, string memory _name)
+        public
+        onlyAdmins
+        returns (uint256)
+    {
         irlCount.increment();
         uint256 currentIrlId = irlCount.current();
 
         IRL storage newIrl = irls[currentIrlId];
         newIrl.id = currentIrlId;
-        newIrl.eventAmount = _eventAmount;
-    }
+        newIrl.name = _name;
+        newIrl.image = _image;
 
-    function joinIrl(uint256 _irlId) public {
-        require(!irls[_irlId].participants[msg.sender], "Meet: Already joined");
-        irls[_irlId].participants[msg.sender] = true;
-
-        IERC20(tokenAddress).transfer(msg.sender, irls[_irlId].eventAmount);
+        return currentIrlId;
     }
 
     function reedemNFT(uint256 _giftId) public {
         require(!_redeems[msg.sender][_giftId], "Meet: NFT Already redeemed!");
         _redeems[msg.sender][_giftId] = true;
+        IERC20(tokenAddress).transfer(
+            address(this),
+            _giftNfts[_giftId].redeemAmount
+        );
         IERC721(NFTAddress).transferFrom(
             address(this),
             msg.sender,
@@ -73,24 +88,38 @@ contract Meet {
         );
     }
 
-    function interact(uint256 _irlId, address _userAddress)
+    function createActivity(
+        uint256 _irlId,
+        string memory _activityName,
+        uint256 _award
+    ) public onlyAdmins {
+        _activityCount.increment();
+        uint256 _currentActivityCount = _activityCount.current();
+        activities[_currentActivityCount] = Activity({
+            id: _activityCount.current(),
+            irlId: _irlId,
+            name: _activityName,
+            award: _award
+        });
+    }
+
+    function interact(uint256 _irlId, uint256 _activityId)
         public
         returns (bool)
     {
-        if (
-            interactions[_irlId][msg.sender][_userAddress] ||
-            interactions[_irlId][_userAddress][msg.sender]
-        ) return false;
-        interactions[_irlId][msg.sender][_userAddress] = true;
-        interactions[_irlId][_userAddress][msg.sender] = true;
+        if (activityInteractions[_irlId][_activityId][msg.sender]) return false;
+        activityInteractions[_irlId][_activityId][msg.sender] = true;
+
+        bool sent = IERC20(tokenAddress).transfer(
+            msg.sender,
+            activities[_activityId].award
+        );
+        require(sent, "Meet: token transfer failed");
         return true;
     }
 
-    modifier onlyAdmin() {
-        require(
-            msg.sender == admin,
-            "Token: Only admin can perform this operation"
-        );
+    modifier onlyAdmins() {
+        require(admins[msg.sender], "Token: Only admins can mint tokens");
         _;
     }
 }
