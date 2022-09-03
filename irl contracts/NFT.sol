@@ -1,38 +1,55 @@
-// SPDX-License-Identifier: MITX
-pragma solidity 0.8.7;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
-contract MeetNFT is ERC721URIStorage {
-    address admin;
-    using Counters for Counters.Counter;
+contract IRLNFT is ERC1155, ERC1155Burnable, ERC1155Supply {
+    mapping(address => bool) public admins;
 
-    Counters.Counter public _assetCount;
-
-    function totalSupply() external view returns (uint256) {
-        return _assetCount.current();
+    constructor() ERC1155("") {
+        admins[msg.sender] = true;
     }
 
-    constructor() ERC721("Meet NFT", "MNT") {
-        admin = msg.sender;
+    function setURI(string memory newuri) public onlyAdmin {
+        _setURI(newuri);
     }
 
-    function mint(string memory _tokeURI) external onlyAdmin returns (uint256) {
-        _assetCount.increment();
-        uint256 currentAssetId = _assetCount.current();
+    function mint(
+        address account,
+        uint256 id,
+        uint256 amount
+    ) public onlyAdmin {
+        require(id <= 5 && id > 0, "NFT: Invalid Id.");
+        _mint(account, id, amount, "");
+    }
 
-        _mint(msg.sender, currentAssetId);
-        _setTokenURI(currentAssetId, _tokeURI);
+    function mintBatch(
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts
+    ) public onlyAdmin {
+        for (uint8 i = 1; i <= ids.length; i++) {
+            require(ids[i - 1] <= 5 && ids[i - 1] > 0, "NFT: Invalid Id.");
+        }
 
-        return currentAssetId;
+        _mintBatch(to, ids, amounts, "");
     }
 
     modifier onlyAdmin() {
-        require(
-            msg.sender == admin,
-            "Token: Only admin can perform this operation"
-        );
+        require(admins[msg.sender], "NFT: Only admins can mint tokens");
         _;
+    }
+
+    function _beforeTokenTransfer(
+        address operator,
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) internal override(ERC1155, ERC1155Supply) {
+        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
     }
 }
