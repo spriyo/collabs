@@ -35,16 +35,17 @@ contract Meet {
     Counters.Counter public _activityCount;
     mapping(uint256 => IRL) public irls;
     mapping(uint256 => GiftNFT) public _giftNfts;
-    mapping(uint256 => Activity) public activities;
+    mapping(uint256 => mapping(uint256 => Activity)) public activities;
     mapping(address => mapping(uint256 => bool)) private _redeems;
     // mapping(uint256 => mapping(address => mapping(address => bool))) public interactions;
     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
-        public activityInteractions;
+        private _activityInteractions;
 
-    constructor(address _tokenAddress, address _nftAddress) {
+    constructor() {
+        // address _tokenAddress, address _nftAddress
         admins[msg.sender] = true;
-        tokenAddress = _tokenAddress;
-        NFTAddress = _nftAddress;
+        tokenAddress = address(0xa13E0E8156972817e6E89934b41A2bE21F8Ab367);
+        NFTAddress = address(0x09d4c32e553B8d209CDDdD9b2773613574AB927d);
     }
 
     function createGiftNft(uint256 _tokenId, uint256 _reedemAmount)
@@ -95,7 +96,7 @@ contract Meet {
     ) public onlyAdmins {
         _activityCount.increment();
         uint256 _currentActivityCount = _activityCount.current();
-        activities[_currentActivityCount] = Activity({
+        activities[_irlId][_currentActivityCount] = Activity({
             id: _activityCount.current(),
             irlId: _irlId,
             name: _activityName,
@@ -103,19 +104,19 @@ contract Meet {
         });
     }
 
-    function interact(uint256 _irlId, uint256 _activityId)
-        public
-        returns (bool)
-    {
-        if (activityInteractions[_irlId][_activityId][msg.sender]) return false;
-        activityInteractions[_irlId][_activityId][msg.sender] = true;
+    function interact(uint256 _irlId, uint256 _activityId) public {
+        require(_irlId <= irlCount._value, "Meet: Invalid IRL id.");
+        require(
+            !_activityInteractions[_irlId][_activityId][msg.sender],
+            "Meet: Already interacted"
+        );
+        _activityInteractions[_irlId][_activityId][msg.sender] = true;
 
         bool sent = IERC20(tokenAddress).transfer(
             msg.sender,
-            activities[_activityId].award
+            activities[_irlId][_activityId].award
         );
         require(sent, "Meet: token transfer failed");
-        return true;
     }
 
     modifier onlyAdmins() {
