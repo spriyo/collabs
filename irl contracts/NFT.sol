@@ -12,7 +12,7 @@ contract IRLNFT is ERC1155, ERC1155Burnable, ERC1155Supply {
         admins[msg.sender] = true;
     }
 
-    function setURI(string memory newuri) public onlyAdmin {
+    function setURI(string memory newuri) public onlyAdmins {
         _setURI(newuri);
     }
 
@@ -20,7 +20,7 @@ contract IRLNFT is ERC1155, ERC1155Burnable, ERC1155Supply {
         address account,
         uint256 id,
         uint256 amount
-    ) public onlyAdmin {
+    ) public onlyAdmins {
         require(id <= 5 && id > 0, "NFT: Invalid Id.");
         _mint(account, id, amount, "");
     }
@@ -29,15 +29,19 @@ contract IRLNFT is ERC1155, ERC1155Burnable, ERC1155Supply {
         address to,
         uint256[] memory ids,
         uint256[] memory amounts
-    ) public onlyAdmin {
-        for (uint8 i = 1; i <= ids.length; i++) {
-            require(ids[i - 1] <= 5 && ids[i - 1] > 0, "NFT: Invalid Id.");
+    ) public onlyAdmins {
+        for (uint8 i = 0; i < ids.length; i++) {
+            require(ids[i] <= 5 && ids[i] > 0, "NFT: Invalid Id.");
         }
 
         _mintBatch(to, ids, amounts, "");
     }
 
-    modifier onlyAdmin() {
+    function addAdmin(address _newAdmin) public onlyAdmins {
+        admins[_newAdmin] = true;
+    }
+
+    modifier onlyAdmins() {
         require(admins[msg.sender], "NFT: Only admins can mint tokens");
         _;
     }
