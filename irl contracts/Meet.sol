@@ -39,7 +39,7 @@ contract Meet {
     mapping(address => mapping(uint256 => bool)) private _redeems;
     // mapping(uint256 => mapping(address => mapping(address => bool))) public interactions;
     mapping(uint256 => mapping(uint256 => mapping(address => bool)))
-        private _activityInteractions;
+        public activityInteractions;
 
     constructor() {
         // address _tokenAddress, address _nftAddress
@@ -107,10 +107,10 @@ contract Meet {
     function interact(uint256 _irlId, uint256 _activityId) public {
         require(_irlId <= irlCount._value, "Meet: Invalid IRL id.");
         require(
-            !_activityInteractions[_irlId][_activityId][msg.sender],
+            !activityInteractions[_irlId][_activityId][msg.sender],
             "Meet: Already interacted"
         );
-        _activityInteractions[_irlId][_activityId][msg.sender] = true;
+        activityInteractions[_irlId][_activityId][msg.sender] = true;
 
         bool sent = IERC20(tokenAddress).transfer(
             msg.sender,
